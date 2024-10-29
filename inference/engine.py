@@ -33,6 +33,7 @@ def split_sentences(paragraph: str, lang: str) -> List[str]:
     """
     
     print("split_sentence")
+    print("3rd test")
     if lang == "eng_Latn":
         with MosesSentenceSplitter(flores_codes[lang]) as splitter:
             sents_moses = splitter([paragraph])
