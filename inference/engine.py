@@ -175,30 +175,90 @@ class Model:
         else:
             raise NotImplementedError(f"Unknown model_type: {model_type}")
 
-    def ctranslate2_translate_lines(self, lines: List[str]) -> List[str]:
+    def is_english(self,char: list, ignore_list: list) -> bool:
+        allowed_ranges = [
+            ('\u0041', '\u005A'),  # A-Z (uppercase English letters)
+            ('\u0061', '\u007A')   # a-z (lowercase English letters)
+        ]
+        print(f"char : - {char}")
+        # Iterate through each word in the list
+        for word in char:
+            print(f"word: {word}")
+            # Now iterate through each character in the word
+            for character in word:
+                print(f"character: {character}")
+                # Check if the character is not in the ignore list and is within the allowed ranges
+                if character not in ignore_list and any(start <= character <= end for start, end in allowed_ranges):
+                    
+                    return True  # Found a valid English letter
+        
+        return False
+    
+    
+    def ctranslate2_translate_lines(self,  lines: List[str], len_id: list) -> List[str]:
         tokenized_sents = [x.strip().split(" ") for x in lines]
-        translations = self.translator.translate_batch(
+        if tokenized_sents[0][0] == "eng_Latn":
+            print(f"ctranslate2_translate_lines : tokenized sents{lines}")
+            print(f"ctranslate2_translate_lines : tokenized sents{tokenized_sents}")
+            translations = self.translator.translate_batch(
+                tokenized_sents,
+                max_batch_size=9216,
+                batch_type="tokens",
+                max_input_length=160,
+                max_decoding_length=256,
+                return_scores=True,
+                beam_size=5,
+                num_hypotheses = 5
+                # target_prefix = [["नरेंद्र मोदी स्वतंत्रता दिवस पर लोगों को संबोधित कर रहे हैं।"]]
+            )
+            final_response = []
+            for i, len_ids in zip(translations,len_id):
+                
+                found_correct = False
+                for j in i.hypotheses:
+                    
+                    if len_ids == 0:
+                        ignore_list = []
+                        
+                    else:
+                        ignore_list = ['I',"D"] 
+                        
+                    if not self.is_english(j,ignore_list):
+                        
+                        final_response.append(j)
+                        found_correct = True
+                        break
+                if not found_correct:
+                    final_response.append(i.hypotheses[0])                  
+            translations = [" ".join(x) for x in final_response]   
+            
+            return translations         
+        else:
+            
+            tokenized_sents = [x.strip().split(" ") for x in lines]
+            
+            translations = self.translator.translate_batch(
             tokenized_sents,
             max_batch_size=9216,
             batch_type="tokens",
             max_input_length=160,
             max_decoding_length=256,
             beam_size=5,
-        )
-        translations = [" ".join(x.hypotheses[0]) for x in translations]
-        return translations
+            )
+            translations = [" ".join(x.hypotheses[0]) for x in translations]
+            return translations
 
     def fairseq_translate_lines(self, lines: List[str]) -> List[str]:
         return self.translator.translate(lines)
 
     def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple]) -> List[str]:
         """
-        Translates a batch of input paragraphs (including pre/post processing)
+        Translates a batch of input paragraphs (including pre/post processing) 
         from any language to any language.
-
+        
         Args:
             batch_payloads (List[tuple]): batch of long input-texts to be translated, each in format: (paragraph, src_lang, tgt_lang)
-
+        
         Returns:
             List[str]: batch of paragraph-translations in the respective languages.
         """
@@ -206,44 +266,43 @@ class Model:
         global__sents = []
         global__preprocessed_sents = []
         global__preprocessed_sents_placeholder_entity_map = []
-
+        
+        len_id = []
         for i in range(len(batch_payloads)):
             paragraph, src_lang, tgt_lang = batch_payloads[i]
+            
+                
             if self.input_lang_code_format == "iso":
                 src_lang, tgt_lang = iso_to_flores[src_lang], iso_to_flores[tgt_lang]
-
+            
             batch = split_sentences(paragraph, src_lang)
             global__sents.extend(batch)
 
-            preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(
-                batch, src_lang, tgt_lang
-            )
+            preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(batch, src_lang, tgt_lang)
 
+            len_id.append(len(placeholder_entity_map_sents[0]))
+            
             global_sentence_start_index = len(global__preprocessed_sents)
             global__preprocessed_sents.extend(preprocessed_sents)
             global__preprocessed_sents_placeholder_entity_map.extend(placeholder_entity_map_sents)
-            paragraph_id_to_sentence_range.append(
-                (global_sentence_start_index, len(global__preprocessed_sents))
-            )
-
-        translations = self.translate_lines(global__preprocessed_sents)
+            paragraph_id_to_sentence_range.append((global_sentence_start_index, len(global__preprocessed_sents)))
+        
+        translations = self.translate_lines(global__preprocessed_sents,len_id)
 
         translated_paragraphs = []
         for paragraph_id, sentence_range in enumerate(paragraph_id_to_sentence_range):
             tgt_lang = batch_payloads[paragraph_id][2]
             if self.input_lang_code_format == "iso":
                 tgt_lang = iso_to_flores[tgt_lang]
-
+            
             postprocessed_sents = self.postprocess(
-                translations[sentence_range[0] : sentence_range[1]],
-                global__preprocessed_sents_placeholder_entity_map[
-                    sentence_range[0] : sentence_range[1]
-                ],
+                translations[sentence_range[0]:sentence_range[1]],
+                global__preprocessed_sents_placeholder_entity_map[sentence_range[0]:sentence_range[1]],
                 tgt_lang,
             )
             translated_paragraph = " ".join(postprocessed_sents)
             translated_paragraphs.append(translated_paragraph)
-
+        
         return translated_paragraphs
 
     # translate a batch of sentences from src_lang to tgt_lang
