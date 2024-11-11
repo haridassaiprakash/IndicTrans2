@@ -280,7 +280,9 @@ class Model:
 
             preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(batch, src_lang, tgt_lang)
 
-            len_id.append(len(placeholder_entity_map_sents[0]))
+            for i in range(len(placeholder_entity_map_sents)):
+                
+                len_id.append(len(placeholder_entity_map_sents[i]))
             
             global_sentence_start_index = len(global__preprocessed_sents)
             global__preprocessed_sents.extend(preprocessed_sents)
