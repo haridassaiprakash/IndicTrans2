@@ -11,7 +11,7 @@ EMAIL_PATTERN = r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}'
 NUMERAL_PATTERN = r"(~?\d+\.?\d*\s?%?\s?-?\s?~?\d+\.?\d*\s?%|~?\d+%|\d+[-\/.,:']\d+[-\/.,:'+]\d+(?:\.\d+)?|\d+[-\/.:'+]\d+(?:\.\d+)?)"
 # handles upi, social media handles and hashtags
 OTHER_PATTERN = r'[A-Za-z0-9]*[#|@]\w+'
-
+GOV_EMAIL = r'\b\S*\[at\]\S*\[dot\]\S*\b'
 
 def normalize_indic_numerals(line: str):
     """
@@ -27,6 +27,7 @@ def normalize_indic_numerals(line: str):
 
 
 def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
+# def wrap_with_placeholders(text: str, patterns: list, non_english: list) -> Tuple[str, dict]:
     """
     Wraps substrings with matched patterns in the given text with placeholders and returns
     the modified text along with a mapping of the placeholders to their original value.
@@ -47,6 +48,12 @@ def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
         matches = set(re.findall(pattern, text))
         
         # wrap common match with placeholder tags
+        # if pattern == "NON_ENGLISH":
+            
+        #     matches = non_english
+        #     print(f"nomalize_pattern : - {matches}")
+        
+        
         for match in matches:
             if pattern==URL_PATTERN :
                 #Avoids false positive URL matches for names with initials.
@@ -58,10 +65,15 @@ def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
                 temp = match.replace(" ",'').replace(".",'').replace(":",'')
                 if len(temp)<4:
                     continue
+            if pattern == URL_PATTERN:
+                NON_VALID_URL_PATTERN = r'^(?!.*\b(www|http|https)\b)(?!.*(\.com|\.org|\.in|\.net|\.edu)).*[\./].*$'
+                if re.match(NON_VALID_URL_PATTERN, match):
+                    continue
+                    
             
             #Set of Translations of "ID" in all the suppported languages have been collated.            
-            #This has been added to deal with edge cases where placeholders might get translated. 
-            indic_failure_cases = ['آی ڈی ', 'ꯑꯥꯏꯗꯤ', 'आईडी', 'आई . डी . ', 'ऐटि', 'آئی ڈی ', 'ᱟᱭᱰᱤ ᱾', 'आयडी', 'ऐडि', 'आइडि']         
+            #This has been added to deal with edge cases where placeholders might get translated. <आइ. डि1> आइ. डि. 1
+            indic_failure_cases = ['آی ڈی ', 'ꯑꯥꯏꯗꯤ', 'आईडी', 'आई . डी . ', 'ऐटि', 'آئی ڈی ', 'ᱟᱭᱰᱤ ᱾', 'आयडी', 'ऐडि', 'आइडि',"ऐ . डि","ऐ . डि .","आइ. डि","आइ. डि.","आइ . डि .","आइ . डि","आई. डी.", "आई. डी", "आई . डी"]    
             placeholder = "<ID{}>".format(serial_no)
             alternate_placeholder = "< ID{} >".format(serial_no)                    
             placeholder_entity_map[placeholder] = match
@@ -73,6 +85,8 @@ def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
                 placeholder_temp = "< {}{} >".format(i, serial_no)
                 placeholder_entity_map[placeholder_temp] = match
                 placeholder_temp = "< {} {} >".format(i, serial_no)
+                placeholder_entity_map[placeholder_temp] = match
+                placeholder_temp = "<{} {}>".format(i,serial_no)
                 placeholder_entity_map[placeholder_temp] = match
             
             text = text.replace(match, placeholder)
@@ -86,7 +100,8 @@ def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
     return text, placeholder_entity_map
 
 
-def normalize(text: str, patterns: list = [EMAIL_PATTERN, URL_PATTERN, NUMERAL_PATTERN, OTHER_PATTERN]) -> Tuple[str, dict]:
+# def normalize(text: str, iso_lang: str, patterns: list = [EMAIL_PATTERN, URL_PATTERN, NUMERAL_PATTERN, OTHER_PATTERN, NON_ENGLISH, GOV_EMAIL]) -> Tuple[str, dict]:
+def normalize(text: str, patterns: list = [EMAIL_PATTERN, URL_PATTERN, NUMERAL_PATTERN, OTHER_PATTERN, GOV_EMAIL]) -> Tuple[str, dict]:
     """
     Normalizes and wraps the spans of input string with placeholder tags. It first normalizes
     the Indic numerals in the input string to Roman script. Later, it uses the input string with normalized
@@ -101,5 +116,8 @@ def normalize(text: str, patterns: list = [EMAIL_PATTERN, URL_PATTERN, NUMERAL_P
             placeholders to their original values.
     """
     text = normalize_indic_numerals(text.strip("\n"))
+    # non_english = extract_non_english(text, iso_lang)
+    # print(non_english)
+    # text, placeholder_entity_map  = wrap_with_placeholders(text, patterns, non_english)
     text, placeholder_entity_map  = wrap_with_placeholders(text, patterns)
     return text, placeholder_entity_map

@@ -251,6 +251,54 @@ class Model:
     def fairseq_translate_lines(self, lines: List[str]) -> List[str]:
         return self.translator.translate(lines)
 
+
+    def char_percent_check( self, input):
+        # check whether input has input_threhsold of roman characters
+        
+        # count total number of characters in string
+        input_len = len(list(input))
+        print(input_len)
+
+        # count special character spaces and newline in string
+        special_char_pattern = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
+        special_char_matches = special_char_pattern.findall(input)
+        special_chars = len(special_char_matches)
+        
+        
+        
+        spaces = len(re.findall('\s', input))
+        newlines = len(re.findall('\n', input))
+        email_pattern = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+        url_pattern = re.compile(r'(https?://\S+|www\.\S+)')
+        emails = email_pattern.findall(input)
+        urls = url_pattern.findall(input)
+        # print(emails, urls)
+        # email_char_count = sum(len(email) for email in emails)
+        # url_char_count = sum(len(url) for url in urls)
+        # print(url_char_count)
+        email_len = sum(len(email) for email in emails)
+        print(f"emails: - {emails}")
+        print(f"len of emails: - {email_len}")
+        urls = url_pattern.findall(input)
+        url_len = sum(len(url) for url in urls)
+        print(f"emails: - {urls}")
+        print(f"len of emails: - {url_len}")
+        # subtract total-special character counts
+        input_str_no_emails_urls = email_pattern.sub('', input)
+        input_str_no_emails_urls = url_pattern.sub('', input_str_no_emails_urls)
+        total_chars = input_len - (special_chars + spaces + newlines + email_len + url_len)
+
+        # count the number of english character and digit in string
+        en_pattern = re.compile('[a-zA-Z0-9]')
+        en_matches = en_pattern.findall(input_str_no_emails_urls)
+        en_chars = len(en_matches)
+
+        # calculate the percentage of english character in total number of characters
+        if total_chars == 0:
+            return 0
+        return (en_chars/total_chars)
+    
+    
     def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple]) -> List[str]:
         """
         Translates a batch of input paragraphs (including pre/post processing) 
@@ -268,6 +316,7 @@ class Model:
         global__preprocessed_sents_placeholder_entity_map = []
         
         len_id = []
+        dict_of_non_english = {}
         for i in range(len(batch_payloads)):
             paragraph, src_lang, tgt_lang = batch_payloads[i]
             
@@ -275,15 +324,26 @@ class Model:
             if self.input_lang_code_format == "iso":
                 src_lang, tgt_lang = iso_to_flores[src_lang], iso_to_flores[tgt_lang]
             
+            if src_lang == "eng_Latn":
+                print(f"char_percent_check: - {self.char_percent_check(paragraph)}")
+                if  self.char_percent_check(paragraph) < 0.5:
+                    dict_of_non_english[i] = paragraph
+            
+            
+            
+            
             batch = split_sentences(paragraph, src_lang)
             global__sents.extend(batch)
 
             preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(batch, src_lang, tgt_lang)
 
+            # Sab: *************************
             for i in range(len(placeholder_entity_map_sents)):
                 
                 len_id.append(len(placeholder_entity_map_sents[i]))
-            
+            print(f"Len ID : -{len_id}")
+            print(f"placeholder_entity_map_sents {placeholder_entity_map_sents}")
+            # ***************************************
             global_sentence_start_index = len(global__preprocessed_sents)
             global__preprocessed_sents.extend(preprocessed_sents)
             global__preprocessed_sents_placeholder_entity_map.extend(placeholder_entity_map_sents)
@@ -304,6 +364,11 @@ class Model:
             )
             translated_paragraph = " ".join(postprocessed_sents)
             translated_paragraphs.append(translated_paragraph)
+        
+        print(f"translated_paragraphs: - {translated_paragraphs}")
+        for index, new_sentence in dict_of_non_english.items():
+            translated_paragraphs[index] = new_sentence
+        print(f"translated_paragraphs: - {translated_paragraphs}")
         
         return translated_paragraphs
 
