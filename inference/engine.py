@@ -252,48 +252,56 @@ class Model:
         return self.translator.translate(lines)
 
 
-    def char_percent_check( self, input):
-        # check whether input has input_threhsold of roman characters
+    def char_percent_check(input):
+        """
         
-        # count total number of characters in string
+        Calculate the percentage of Roman characters (English letters and digits) 
+        in the given input string after removing special characters, spaces, 
+        newlines, emails, and URLs.
+
+        Args:
+            input (str): The input string to analyze.
+
+        Returns:
+            float: The percentage of Roman characters in the total valid characters 
+                of the string. Returns 0 if the total valid characters are zero.
+        
+        """
+       
         input_len = len(list(input))
         print(input_len)
-
-        # count special character spaces and newline in string
-        special_char_pattern = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
-        special_char_matches = special_char_pattern.findall(input)
-        special_chars = len(special_char_matches)
-        
-        
-        
         spaces = len(re.findall('\s', input))
         newlines = len(re.findall('\n', input))
         email_pattern = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
         url_pattern = re.compile(r'(https?://\S+|www\.\S+)')
         emails = email_pattern.findall(input)
         urls = url_pattern.findall(input)
-        # print(emails, urls)
-        # email_char_count = sum(len(email) for email in emails)
-        # url_char_count = sum(len(url) for url in urls)
-        # print(url_char_count)
+        
         email_len = sum(len(email) for email in emails)
-        print(f"emails: - {emails}")
-        print(f"len of emails: - {email_len}")
+       
         urls = url_pattern.findall(input)
         url_len = sum(len(url) for url in urls)
-        print(f"emails: - {urls}")
-        print(f"len of emails: - {url_len}")
-        # subtract total-special character counts
+     
         input_str_no_emails_urls = email_pattern.sub('', input)
         input_str_no_emails_urls = url_pattern.sub('', input_str_no_emails_urls)
-        total_chars = input_len - (special_chars + spaces + newlines + email_len + url_len)
 
-        # count the number of english character and digit in string
+        special_char_pattern = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
+        special_char_matches = special_char_pattern.findall(input_str_no_emails_urls)
+        special_chars = len(special_char_matches)
+        total_chars = input_len - ( special_chars + spaces + newlines + email_len + url_len)
+        print(f"input_len :{input_len}")
+        print(f"special_chars :{special_chars}")
+        print(f"spaces :{spaces}")
+        print(f"newlines :{newlines}")
+        print(f"email_len :{email_len}")
+        print(f"url_len :{url_len}")
+        
         en_pattern = re.compile('[a-zA-Z0-9]')
         en_matches = en_pattern.findall(input_str_no_emails_urls)
         en_chars = len(en_matches)
-
-        # calculate the percentage of english character in total number of characters
+        print(f"en_chars :{en_chars}")
+        print(f"total_chars :{total_chars}")
+        
         if total_chars == 0:
             return 0
         return (en_chars/total_chars)

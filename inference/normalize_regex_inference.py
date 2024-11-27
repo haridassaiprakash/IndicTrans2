@@ -66,7 +66,7 @@ def wrap_with_placeholders(text: str, patterns: list) -> Tuple[str, dict]:
                 if len(temp)<4:
                     continue
             if pattern == URL_PATTERN:
-                NON_VALID_URL_PATTERN = r'^(?!.*\b(www|http|https)\b)(?!.*(\.com|\.org|\.in|\.net|\.edu)).*[\./].*$'
+                NON_VALID_URL_PATTERN = r'^(?!.*\b(www|http|https|ftp)\b)(?!.*(\.com|\.org|\.in|\.net|\.edu)).*[\./].*$'
                 if re.match(NON_VALID_URL_PATTERN, match):
                     continue
                     
