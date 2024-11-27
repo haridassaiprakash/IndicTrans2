@@ -252,7 +252,7 @@ class Model:
         return self.translator.translate(lines)
 
 
-    def char_percent_check(input):
+    def char_percent_check(self, input):
         """
         
         Calculate the percentage of Roman characters (English letters and digits) 
@@ -334,7 +334,7 @@ class Model:
             
             if src_lang == "eng_Latn":
                 print(f"char_percent_check: - {self.char_percent_check(paragraph)}")
-                if  self.char_percent_check(paragraph) < 0.5:
+                if  0 < self.char_percent_check(paragraph) <= 0.5:
                     dict_of_non_english[i] = paragraph
             
             
