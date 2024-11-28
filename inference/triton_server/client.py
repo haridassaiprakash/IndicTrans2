@@ -3,7 +3,7 @@ from tritonclient.utils import *
 import numpy as np
 
 ENABLE_SSL = False
-ENDPOINT_URL = 'localhost:8010'
+ENDPOINT_URL = 'localhost:8000'
 HTTP_HEADERS = {"Authorization": "Bearer __PASTE_KEY_HERE__"}
 
 # Connect to the server
@@ -34,8 +34,8 @@ def get_translation_input_for_triton(texts: list, src_lang: str, tgt_lang: str):
     ]
 
 # Prepare input and output tensors
-input_sentences = ["Hello world, नमस्ते दुनिया, मैं राम हूँ और मैं अयोध्या से हूँ।","Under Secretary D (Estt./Non-Gazetted)","Delegation of Powers for SCOMET Sub Category 6A007 & 6A008 to DDP", "How are you Ravan bro? bhashini[at]gmail[dot]com", "IDM (05/07/2022)"]
-inputs = get_translation_input_for_triton(input_sentences, "en", "ml")
+input_sentences = ["input_sentences = ['https://www.foodlover.com/recipes?cuisine=indian&meal_type=dinner&ingredients=chicken,spinach,tomato&dietary=gluten_free&prep_time_max=30&difficulty=easy&ratings=4-5&prep_method=grilled&ref=foodblog&utm_medium=social&utm_campaign=spring_recipes']"]
+inputs = get_translation_input_for_triton(input_sentences, "en", "hi")
 output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
 
 # Send request

@@ -334,7 +334,7 @@ class Model:
             
             if src_lang == "eng_Latn":
                 print(f"char_percent_check: - {self.char_percent_check(paragraph)}")
-                if  0 < self.char_percent_check(paragraph) <= 0.5:
+                if  self.char_percent_check(paragraph) <= 0.5:
                     dict_of_non_english[i] = paragraph
             
             
