@@ -1,0 +1,79 @@
+# ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:22.12-py3
+# FROM ${BASE_IMAGE}
+
+# # Ensure apt-get won't prompt for selecting options
+# ENV DEBIAN_FRONTEND=noninteractive
+# ENV PYTHONIOENCODING=utf8
+# WORKDIR /home
+# RUN git clone https://github.com/haridassaiprakash/IndicTrans2.git && cd /home/indicTrans2 && git checkout non_eng_gov_email_non_url_neva
+# ARG INDICTRANS2_COMMIT_HASH=b173d43
+# RUN cd  && git pull && git checkout $INDICTRANS2
+
+# WORKDIR /home/indicTrans2
+
+# RUN pip install -r requirements.txt
+# RUN python3 download.py
+# CMD ["tritonserver", "--model-repository=/home/indicTrans2/inference/triton_server/triton_repo", "--log-verbose=2", "--strict-model-config=false", "--http-port=8000", "--grpc-port=8001", "--metrics-port=8002"]
+# EXPOSE 8000
+# EXPOSE 8001
+# EXPOSE 8002
+
+
+# Base image from NVIDIA Triton server
+ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:22.12-py3
+FROM ${BASE_IMAGE}
+
+# Ensure apt-get won't prompt for selecting options and set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONIOENCODING=utf8
+
+# Set the working directory
+WORKDIR /home
+
+# Clone the repository with a specific branch and commit hash
+RUN git clone https://github.com/haridassaiprakash/IndicTrans2.git && \
+    cd IndicTrans2 && \
+    git checkout non_eng_gov_email_non_url_neva && \
+    git reset --hard b173d43
+
+# Navigate and pull changes
+WORKDIR /home/IndicTrans2/
+RUN git pull && git checkout b173d43
+
+# Navigate back to the main project directory
+WORKDIR /home/IndicTrans2
+
+# Install dependencies
+RUN pip install --no-cache-dir -r /home/IndicTrans2/inference/requirements.txt
+
+
+
+# Run the download script to set up required resources
+RUN python3 /home/IndicTrans2/inference/download.py
+
+# Download punkt tokenizer
+RUN python3 -c "import nltk; nltk.download('punkt')"
+
+RUN python3 -c "import nltk; \
+    print('Verifying NLTK resources...'); \
+    nltk.data.find('tokenizers/punkt'); \
+    print('All NLTK resources verified successfully')" || (echo "Punkt not found" && exit 1)
+
+
+# # Verify installation
+# RUN python3 -c "import nltk; nltk.data.find('tokenizers/punkt')" || (echo "Punkt not found" && exit 1)
+
+# Expose required ports
+EXPOSE 8000 8001 8002
+
+# Define the entry point for the Triton server
+CMD ["tritonserver", \
+     "--model-repository=/home/IndicTrans2/inference/triton_server/triton_repo", \
+     "--log-verbose=2", \
+     "--strict-model-config=false", \
+     "--http-port=8000", \
+     "--grpc-port=8001", \
+     "--metrics-port=8002"]
+
+
+

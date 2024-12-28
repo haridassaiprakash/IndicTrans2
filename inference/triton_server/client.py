@@ -34,7 +34,7 @@ def get_translation_input_for_triton(texts: list, src_lang: str, tgt_lang: str):
     ]
 
 # Prepare input and output tensors
-input_sentences = ["Hello world, I am Ram and I am from Ayodhya.", "How are you Ravan bro?"]
+input_sentences = ["input_sentences = ['https://www.foodlover.com/recipes?cuisine=indian&meal_type=dinner&ingredients=chicken,spinach,tomato&dietary=gluten_free&prep_time_max=30&difficulty=easy&ratings=4-5&prep_method=grilled&ref=foodblog&utm_medium=social&utm_campaign=spring_recipes']"]
 inputs = get_translation_input_for_triton(input_sentences, "en", "hi")
 output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
 

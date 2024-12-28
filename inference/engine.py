@@ -33,6 +33,8 @@ def split_sentences(paragraph: str, lang: str) -> List[str]:
     """
     
     print("split_sentence")
+    print("3rd test")
+    print("4th test")
     if lang == "eng_Latn":
         with MosesSentenceSplitter(flores_codes[lang]) as splitter:
             sents_moses = splitter([paragraph])
@@ -173,30 +175,146 @@ class Model:
         else:
             raise NotImplementedError(f"Unknown model_type: {model_type}")
 
-    def ctranslate2_translate_lines(self, lines: List[str]) -> List[str]:
+    def is_english(self,char: list, ignore_list: list) -> bool:
+        allowed_ranges = [
+            ('\u0041', '\u005A'),  # A-Z (uppercase English letters)
+            ('\u0061', '\u007A')   # a-z (lowercase English letters)
+        ]
+        print(f"char : - {char}")
+        # Iterate through each word in the list
+        for word in char:
+            print(f"word: {word}")
+            # Now iterate through each character in the word
+            for character in word:
+                print(f"character: {character}")
+                # Check if the character is not in the ignore list and is within the allowed ranges
+                if character not in ignore_list and any(start <= character <= end for start, end in allowed_ranges):
+                    
+                    return True  # Found a valid English letter
+        
+        return False
+    
+    
+    def ctranslate2_translate_lines(self,  lines: List[str], len_id: list) -> List[str]:
         tokenized_sents = [x.strip().split(" ") for x in lines]
-        translations = self.translator.translate_batch(
+        if tokenized_sents[0][0] == "eng_Latn":
+            print(f"ctranslate2_translate_lines : tokenized sents{lines}")
+            print(f"ctranslate2_translate_lines : tokenized sents{tokenized_sents}")
+            translations = self.translator.translate_batch(
+                tokenized_sents,
+                max_batch_size=9216,
+                batch_type="tokens",
+                max_input_length=160,
+                max_decoding_length=256,
+                return_scores=True,
+                beam_size=5,
+                num_hypotheses = 5
+                # target_prefix = [["नरेंद्र मोदी स्वतंत्रता दिवस पर लोगों को संबोधित कर रहे हैं।"]]
+            )
+            final_response = []
+            for i, len_ids in zip(translations,len_id):
+                
+                found_correct = False
+                for j in i.hypotheses:
+                    
+                    if len_ids == 0:
+                        ignore_list = []
+                        
+                    else:
+                        ignore_list = ['I',"D"] 
+                        
+                    if not self.is_english(j,ignore_list):
+                        
+                        final_response.append(j)
+                        found_correct = True
+                        break
+                if not found_correct:
+                    final_response.append(i.hypotheses[0])                  
+            translations = [" ".join(x) for x in final_response]   
+            
+            return translations         
+        else:
+            
+            tokenized_sents = [x.strip().split(" ") for x in lines]
+            
+            translations = self.translator.translate_batch(
             tokenized_sents,
             max_batch_size=9216,
             batch_type="tokens",
             max_input_length=160,
             max_decoding_length=256,
             beam_size=5,
-        )
-        translations = [" ".join(x.hypotheses[0]) for x in translations]
-        return translations
+            )
+            translations = [" ".join(x.hypotheses[0]) for x in translations]
+            return translations
 
     def fairseq_translate_lines(self, lines: List[str]) -> List[str]:
         return self.translator.translate(lines)
 
-    def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple]) -> List[str]:
+
+    def char_percent_check(self, input):
         """
-        Translates a batch of input paragraphs (including pre/post processing)
-        from any language to any language.
+        
+        Calculate the percentage of Roman characters (English letters and digits) 
+        in the given input string after removing special characters, spaces, 
+        newlines, emails, and URLs.
 
         Args:
-            batch_payloads (List[tuple]): batch of long input-texts to be translated, each in format: (paragraph, src_lang, tgt_lang)
+            input (str): The input string to analyze.
 
+        Returns:
+            float: The percentage of Roman characters in the total valid characters 
+                of the string. Returns 0 if the total valid characters are zero.
+        
+        """
+       
+        input_len = len(list(input))
+        print(input_len)
+        spaces = len(re.findall('\s', input))
+        newlines = len(re.findall('\n', input))
+        email_pattern = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+        url_pattern = re.compile(r'(https?://\S+|www\.\S+)')
+        emails = email_pattern.findall(input)
+        urls = url_pattern.findall(input)
+        
+        email_len = sum(len(email) for email in emails)
+       
+        urls = url_pattern.findall(input)
+        url_len = sum(len(url) for url in urls)
+     
+        input_str_no_emails_urls = email_pattern.sub('', input)
+        input_str_no_emails_urls = url_pattern.sub('', input_str_no_emails_urls)
+
+        special_char_pattern = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
+        special_char_matches = special_char_pattern.findall(input_str_no_emails_urls)
+        special_chars = len(special_char_matches)
+        total_chars = input_len - ( special_chars + spaces + newlines + email_len + url_len)
+        print(f"input_len :{input_len}")
+        print(f"special_chars :{special_chars}")
+        print(f"spaces :{spaces}")
+        print(f"newlines :{newlines}")
+        print(f"email_len :{email_len}")
+        print(f"url_len :{url_len}")
+        
+        en_pattern = re.compile('[a-zA-Z0-9]')
+        en_matches = en_pattern.findall(input_str_no_emails_urls)
+        en_chars = len(en_matches)
+        print(f"en_chars :{en_chars}")
+        print(f"total_chars :{total_chars}")
+        
+        if total_chars == 0:
+            return 0
+        return (en_chars/total_chars)
+    
+    
+    def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple]) -> List[str]:
+        """
+        Translates a batch of input paragraphs (including pre/post processing) 
+        from any language to any language.
+        
+        Args:
+            batch_payloads (List[tuple]): batch of long input-texts to be translated, each in format: (paragraph, src_lang, tgt_lang)
+        
         Returns:
             List[str]: batch of paragraph-translations in the respective languages.
         """
@@ -204,44 +322,62 @@ class Model:
         global__sents = []
         global__preprocessed_sents = []
         global__preprocessed_sents_placeholder_entity_map = []
-
+        
+        len_id = []
+        dict_of_non_english = {}
         for i in range(len(batch_payloads)):
             paragraph, src_lang, tgt_lang = batch_payloads[i]
+            
+                
             if self.input_lang_code_format == "iso":
                 src_lang, tgt_lang = iso_to_flores[src_lang], iso_to_flores[tgt_lang]
-
+            
+            if src_lang == "eng_Latn":
+                print(f"char_percent_check: - {self.char_percent_check(paragraph)}")
+                if  self.char_percent_check(paragraph) <= 0.5:
+                    dict_of_non_english[i] = paragraph
+            
+            
+            
+            
             batch = split_sentences(paragraph, src_lang)
             global__sents.extend(batch)
 
-            preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(
-                batch, src_lang, tgt_lang
-            )
+            preprocessed_sents, placeholder_entity_map_sents = self.preprocess_batch(batch, src_lang, tgt_lang)
 
+            # Sab: *************************
+            for i in range(len(placeholder_entity_map_sents)):
+                
+                len_id.append(len(placeholder_entity_map_sents[i]))
+            print(f"Len ID : -{len_id}")
+            print(f"placeholder_entity_map_sents {placeholder_entity_map_sents}")
+            # ***************************************
             global_sentence_start_index = len(global__preprocessed_sents)
             global__preprocessed_sents.extend(preprocessed_sents)
             global__preprocessed_sents_placeholder_entity_map.extend(placeholder_entity_map_sents)
-            paragraph_id_to_sentence_range.append(
-                (global_sentence_start_index, len(global__preprocessed_sents))
-            )
-
-        translations = self.translate_lines(global__preprocessed_sents)
+            paragraph_id_to_sentence_range.append((global_sentence_start_index, len(global__preprocessed_sents)))
+        
+        translations = self.translate_lines(global__preprocessed_sents,len_id)
 
         translated_paragraphs = []
         for paragraph_id, sentence_range in enumerate(paragraph_id_to_sentence_range):
             tgt_lang = batch_payloads[paragraph_id][2]
             if self.input_lang_code_format == "iso":
                 tgt_lang = iso_to_flores[tgt_lang]
-
+            
             postprocessed_sents = self.postprocess(
-                translations[sentence_range[0] : sentence_range[1]],
-                global__preprocessed_sents_placeholder_entity_map[
-                    sentence_range[0] : sentence_range[1]
-                ],
+                translations[sentence_range[0]:sentence_range[1]],
+                global__preprocessed_sents_placeholder_entity_map[sentence_range[0]:sentence_range[1]],
                 tgt_lang,
             )
             translated_paragraph = " ".join(postprocessed_sents)
             translated_paragraphs.append(translated_paragraph)
-
+        
+        print(f"translated_paragraphs: - {translated_paragraphs}")
+        for index, new_sentence in dict_of_non_english.items():
+            translated_paragraphs[index] = new_sentence
+        print(f"translated_paragraphs: - {translated_paragraphs}")
+        
         return translated_paragraphs
 
     # translate a batch of sentences from src_lang to tgt_lang
