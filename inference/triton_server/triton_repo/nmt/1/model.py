@@ -73,11 +73,13 @@ class TritonPythonModel:
             input_text_batch = pb_utils.get_input_tensor_by_name(request, "INPUT_TEXT").as_numpy()
             input_language_id_batch = pb_utils.get_input_tensor_by_name(request, "INPUT_LANGUAGE_ID").as_numpy()
             output_language_id_batch = pb_utils.get_input_tensor_by_name(request, "OUTPUT_LANGUAGE_ID").as_numpy()
-            
+            number_id_batch = pb_utils.get_input_tensor_by_name(request, "NUMBER_ID").as_numpy()
+            hard_translation_id_batch = pb_utils.get_input_tensor_by_name(request, "HARD_TRANSLATION_ID").as_numpy()
             input_text_batch = [input_text[0].decode("utf-8", "ignore") for input_text in input_text_batch]
             input_language_id_batch = [input_language_id[0].decode("utf-8", "ignore") for input_language_id in input_language_id_batch]
             output_language_id_batch = [output_language_id[0].decode("utf-8", "ignore") for output_language_id in output_language_id_batch]
-
+            number_id_batch = [number_id[0].decode("utf-8", "ignore").lower() for number_id in number_id_batch]
+            hard_translation_id_batch = [hard_translation_id[0].decode("utf-8", "ignore").lower() for hard_translation_id in hard_translation_id_batch]
             responses.append([['']] * len(input_text_batch))
 
             for input_id, (input_text, input_language_id, output_language_id) in enumerate(zip(input_text_batch, input_language_id_batch, output_language_id_batch)):
@@ -105,7 +107,7 @@ class TritonPythonModel:
                     original_langs.append(batch["payloads"][i][2])
                     batch["payloads"][i][2] = self.pivot_lang
 
-                pivot_texts = model.paragraphs_batch_translate__multilingual(batch["payloads"])
+                pivot_texts = model.paragraphs_batch_translate__multilingual(batch["payloads"], hard_translation_id_batch,number_id_batch)
 
                 for i in range(len(batch["payloads"])):
                     batch["payloads"][i][0] = pivot_texts[i]
@@ -113,10 +115,10 @@ class TritonPythonModel:
                     batch["payloads"][i][2] = original_langs[i]
                 
                 model = self.get_model(self.pivot_lang, "hi")
-                translations = model.paragraphs_batch_translate__multilingual(batch["payloads"])
+                translations = model.paragraphs_batch_translate__multilingual(batch["payloads"], hard_translation_id_batch,number_id_batch)
             else:
                 model = self.models[direction_string]
-                translations = model.paragraphs_batch_translate__multilingual(batch["payloads"])
+                translations = model.paragraphs_batch_translate__multilingual(batch["payloads"], hard_translation_id_batch,number_id_batch)
                 # translations = ["bro"] * len(batch["payloads"])
             
             for translation, (request_id, output_id) in zip(translations, batch["text_id_to_req_id_input_id"]):

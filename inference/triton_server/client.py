@@ -26,16 +26,20 @@ def get_string_tensor(string_values, tensor_name):
     input_obj.set_data_from_numpy(string_obj)
     return input_obj
 
-def get_translation_input_for_triton(texts: list, src_lang: str, tgt_lang: str):
+def get_translation_input_for_triton(texts, src_lang, tgt_lang,hard, num):
     return [
         get_string_tensor([[text] for text in texts], "INPUT_TEXT"),
         get_string_tensor([[src_lang]] * len(texts), "INPUT_LANGUAGE_ID"),
         get_string_tensor([[tgt_lang]] * len(texts), "OUTPUT_LANGUAGE_ID"),
+        get_string_tensor([[hard]] * len(texts), "HARD_TRANSLATION_ID"),
+        get_string_tensor([[num]] * len(texts), "NUMBER_ID")
     ]
 
 # Prepare input and output tensors
-input_sentences = ["Hello world, I am Ram and I am from Ayodhya.", "How are you Ravan bro?"]
-inputs = get_translation_input_for_triton(input_sentences, "en", "hi")
+# input_sentences = ["सर्वं खल्विदं ब्रह्मा।"]
+# input_sentences = ["अहं महान् अस्मि"]
+input_sentences = ["National Institute for Research and Development in Defence Shipbuilding (NIRDESH)", "I want the 2985 for the rent for the room.", "Pleas email me on the saruabhgadkar@gmail.com, I will share the 1453 for godies."]
+inputs = get_translation_input_for_triton(input_sentences, "en", "hi", hard = "true", num ="false")
 output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
 
 # Send request

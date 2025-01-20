@@ -14,6 +14,16 @@ input [{
   name: "OUTPUT_LANGUAGE_ID"
   data_type: TYPE_STRING
   dims: 1
+},
+{
+  name: "HARD_TRANSLATION_ID"
+  data_type: TYPE_STRING
+  dims: 1
+},
+{
+  name: "NUMBER_ID"
+  data_type: TYPE_STRING
+  dims: 1
 }]
   
 output {

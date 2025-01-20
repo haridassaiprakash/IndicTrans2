@@ -195,9 +195,9 @@ class Model:
         return False
     
     
-    def ctranslate2_translate_lines(self,  lines: List[str], len_id: list) -> List[str]:
+    def ctranslate2_translate_lines(self,  lines: List[str], len_id: list, hard_translate) -> List[str]:
         tokenized_sents = [x.strip().split(" ") for x in lines]
-        if tokenized_sents[0][0] == "eng_Latn":
+        if tokenized_sents[0][0] == "eng_Latn" and hard_translate[0] == "true":
             print(f"ctranslate2_translate_lines : tokenized sents{lines}")
             print(f"ctranslate2_translate_lines : tokenized sents{tokenized_sents}")
             translations = self.translator.translate_batch(
@@ -251,7 +251,7 @@ class Model:
     def fairseq_translate_lines(self, lines: List[str]) -> List[str]:
         return self.translator.translate(lines)
 
-    def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple]) -> List[str]:
+    def paragraphs_batch_translate__multilingual(self, batch_payloads: List[tuple], hard_translate="false", numbers = "false") -> List[str]:
         """
         Translates a batch of input paragraphs (including pre/post processing) 
         from any language to any language.
@@ -289,7 +289,7 @@ class Model:
             global__preprocessed_sents_placeholder_entity_map.extend(placeholder_entity_map_sents)
             paragraph_id_to_sentence_range.append((global_sentence_start_index, len(global__preprocessed_sents)))
         
-        translations = self.translate_lines(global__preprocessed_sents,len_id)
+        translations = self.translate_lines(global__preprocessed_sents,len_id, hard_translate)
 
         translated_paragraphs = []
         for paragraph_id, sentence_range in enumerate(paragraph_id_to_sentence_range):
@@ -301,6 +301,8 @@ class Model:
                 translations[sentence_range[0]:sentence_range[1]],
                 global__preprocessed_sents_placeholder_entity_map[sentence_range[0]:sentence_range[1]],
                 tgt_lang,
+                numbers
+                
             )
             translated_paragraph = " ".join(postprocessed_sents)
             translated_paragraphs.append(translated_paragraph)
@@ -470,12 +472,31 @@ class Model:
 
         return processed_sents, placeholder_entity_map_sents
 
+# Sab:*********************************************************************************
+    def numbers(self, text_to):
+        translation_table = str.maketrans('0123456789', '०१२३४५६७८९')
+        # translation_table = str.maketrans('0123456789', '०൧൨൩൪൫൬൭൮൯')
+
+
+        # Function to convert English digits to Hindi digits using translate()
+        def translate_numbers_to_hindi(text):
+            return text.translate(translation_table)
+
+        # Example usage
+        
+        return translate_numbers_to_hindi(text_to)
+    
+    # **********************************************************************************************
+
+
     def postprocess(
         self,
         sents: List[str],
         placeholder_entity_map: List[Dict],
         lang: str,
-        common_lang: str = "hin_Deva",
+        numbers: str = 'false',
+        common_lang: str = "hin_Deva"
+        
     ) -> List[str]:
         """
         Postprocesses a batch of input sentences after the translation generations.
@@ -529,9 +550,16 @@ class Model:
                 
                 # Oriya bug: indic-nlp-library produces ଯ଼ instead of ୟ when converting from Devanagari to Odia
                 # TODO: Find out what's the issue with unicode transliterator for Oriya and fix it
+                print(f"numbers : - {numbers}")
                 if lang_code == "ory":
                     outstr = outstr.replace("ଯ଼", 'ୟ')
 
+                elif lang_code == "hin" and numbers[0] == "true":
+                    print(f"outstr : {outstr}")
+                    print("numbers")
+                    print(self.numbers(outstr))
+                    outstr = self.numbers(outstr)    
+                    print(f"Outstr : {outstr}") 
                 postprocessed_sents.append(outstr)
 
         return postprocessed_sents
