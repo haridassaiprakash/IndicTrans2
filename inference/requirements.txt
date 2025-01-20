@@ -9,3 +9,4 @@ urduhack[tf]
 mosestokenizer
 ctranslate2
 sentencepiece
+ai4bharat-transliteration

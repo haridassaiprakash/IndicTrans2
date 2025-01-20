@@ -1,7 +1,7 @@
 import tritonclient.http as http_client
 from tritonclient.utils import *
 import numpy as np
-
+import time
 ENABLE_SSL = False
 ENDPOINT_URL = 'localhost:8000'
 HTTP_HEADERS = {"Authorization": "Bearer __PASTE_KEY_HERE__"}
@@ -34,10 +34,55 @@ def get_translation_input_for_triton(texts: list, src_lang: str, tgt_lang: str):
     ]
 
 # Prepare input and output tensors
-input_sentences = ["Hello world, I am Ram and I am from Ayodhya.", "How are you Ravan bro?"]
-inputs = get_translation_input_for_triton(input_sentences, "en", "hi")
-output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
+input_sentences = ["I want to do homework today","I will apply on the celebaltech.com, please share the document.", "शाम को पार्क में चलने चलेंगे?","यह किताब बहुत दिलचस्प लग रही है।","main aaj ghar jaanaa chaahata hoon", "main ack gaadi khareedoonga."]
 
+def test(input, target):
+    if not input:  # Handle empty or None values
+        return None, None
+    inputs = get_translation_input_for_triton([input], "hin", target)
+    output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
+    start_time = time.time()
+    # Send request
+    response = triton_http_client.infer(
+        "nmt",
+        model_version='1',
+        inputs=inputs,
+        outputs=[output0],
+        headers=HTTP_HEADERS,
+    )#.get_response()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Inference request completed in {elapsed_time:.4f} seconds.")
+    # Decode the response
+    output_batch = response.as_numpy('OUTPUT_TEXT').tolist()
+    result = []
+    for input_sentence, translation in zip(input_sentences, output_batch):
+        print()
+        print(input)
+        print(translation[0].decode("utf-8"))
+        result.append(translation[0].decode("utf-8"))
+
+    return result, elapsed_time
+
+# source =  [
+#     'as', 'bn', 'brx', 'doi',  'gu', 'hi',"en", 'kn', 'ks', 'gom', 'mai', 'ne', 'ml',
+#     'mni', 'mr', 'or', 'pa', 'sa','sat','sd', 'ta', 'te', 'ur'
+# ]
+# # l = ["hi", "mr", "te","en"]
+# # print(test("aap kya kar rahe ho?", "mr"))
+# import pandas as pd
+# df = pd.read_excel("/home/translation-exp-vm/sab/transliteration_test/Hinglish_data_pipeline testing.xlsx")
+# for i in source:
+#     df[i] = df['Hinglish'].apply(lambda x: test(x, i))
+# # print(test("hi","en"))
+# # for i in l:
+# #     df.loc[:67, i], df.loc[:67, f"time_{i}"] = zip(*df.loc[:67, 'Hinglish'].apply(lambda x: test(x, i)))
+
+
+# df.to_excel("/home/translation-exp-vm/sab/transliteration_test/Hinglish_data_pipeline testing.xlsx")    
+inputs = get_translation_input_for_triton(input_sentences, "en", 'hin')
+output0 = http_client.InferRequestedOutput("OUTPUT_TEXT")
+start_time = time.time()
 # Send request
 response = triton_http_client.infer(
     "nmt",
@@ -46,9 +91,12 @@ response = triton_http_client.infer(
     outputs=[output0],
     headers=HTTP_HEADERS,
 )#.get_response()
-
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Inference request completed in {elapsed_time:.4f} seconds.")
 # Decode the response
 output_batch = response.as_numpy('OUTPUT_TEXT').tolist()
+result = []
 for input_sentence, translation in zip(input_sentences, output_batch):
     print()
     print(input_sentence)

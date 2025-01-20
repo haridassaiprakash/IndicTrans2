@@ -13,6 +13,8 @@ from mosestokenizer import MosesSentenceSplitter
 from nltk.tokenize import sent_tokenize
 from sacremoses import MosesDetokenizer, MosesPunctNormalizer, MosesTokenizer
 from tqdm import tqdm
+import nltk
+nltk.download('punkt_tab')
 
 from .flores_codes_map_indic import flores_codes, iso_to_flores
 from .normalize_punctuation import punc_norm
